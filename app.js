@@ -39,7 +39,7 @@ function updateOrderAndValidate() {
 
     // 2. Calculations
     const numGuests = isPlusOne ? 2 : 1;
-    const costPerNight = numGuests * 1.00;
+    const costPerNight = numGuests * 0.01;
     const basePrice = costPerNight * nights;
     // PayPal fee is typically (price * percentage) + fixed fee
     const processingFee = basePrice > 0 ? (basePrice * 0.0349 + 0.45) : 0;
@@ -47,7 +47,7 @@ function updateOrderAndValidate() {
     finalAmount = total.toFixed(2);
     
     // 3. Update Order Summary text
-    summaryLine1.textContent = `${numGuests} guest${numGuests > 1 ? 's' : ''} x $1.00/guest`;
+    summaryLine1.textContent = `${numGuests} guest${numGuests > 1 ? 's' : ''} x $0.01/guest`;
     subtotal1.textContent = `$${costPerNight.toFixed(2)}`;
     summaryLine2.textContent = `x ${nights} Night${nights !== 1 ? 's' : ''}`;
     subtotal2.textContent = `$${basePrice.toFixed(2)}`;
@@ -119,6 +119,35 @@ const paypalButtons = paypal.Buttons({
     // Finalize the transaction
     onApprove: function(data, actions) {
         return actions.order.capture().then(function(details) {
+
+            // --- SAVE DATA TO GOOGLE SHEETS ---
+            const scriptURL = 'YOUR_URL_HERE'; // <-- PASTE YOUR URL HERE
+
+            // 1. Gather all the data from the form
+            const isPlusOne = document.getElementById('plus-one-checkbox').checked;
+            const formData = {
+                transactionId: details.id,
+                payerEmail: details.payer.email_address,
+                firstName: document.getElementById('first-name').value,
+                lastName: document.getElementById('last-name').value,
+                plusOne: isPlusOne ? "Yes" : "No",
+                guestFirstName: isPlusOne ? document.getElementById('guest-first-name').value : "N/A",
+                guestLastName: isPlusOne ? document.getElementById('guest-last-name').value : "N/A",
+                nights: document.getElementById('nights-select').value,
+                totalPaid: details.purchase_units[0].amount.value
+            };
+
+            // 2. Send the data to your Google Script
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors', // Important for sending from a browser to Google Scripts
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            }).catch(err => console.error('Error sending data to Google Sheets:', err));
+
+
             // Hide form and show success message on completion
             document.querySelector('.container').innerHTML = `
                 <div class="form-header">
